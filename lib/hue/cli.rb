@@ -2,6 +2,8 @@ require 'thor'
 
 module Hue
   class Cli < Thor
+    class_option :ip, :type => :string, desc: 'Set bridge ip manually'
+
     desc 'lights', 'Find all of the lights on your network'
     def lights
       client.lights.each do |light|
@@ -33,7 +35,6 @@ module Hue
     option :alert, :type => :string
     desc 'all STATE', 'Send commands to all lights'
     def all(state = 'on')
-      body = options.dup
       body[:on] = state == 'on'
       client.lights.each do |light|
         puts light.set_state body
@@ -56,7 +57,6 @@ module Hue
       light = client.light(id)
       puts light.name
 
-      body = options.dup
       body[:on] = (state == 'on' || !(state == 'off'))
       puts light.set_state(body) if body.length > 0
     end
@@ -87,15 +87,20 @@ module Hue
       group = client.group(id)
       puts group.name
 
-      body = options.dup
       body[:on] = (state == 'on' || !(state == 'off'))
       puts group.set_state(body) if body.length > 0
     end
 
   private
 
+    def body
+      @body ||= options.dup.tap do |opts|
+        opts.delete(:ip)
+      end
+    end
+
     def client
-      @client ||= Hue::Client.new
+      @client ||= Hue::Client.new(Hue::DEFAULT_USERNAME, :bridge_ip => options[:ip])
     end
   end
 end

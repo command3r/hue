@@ -10,4 +10,5 @@ require 'hue/scene'
 
 module Hue
   USERNAME_RANGE = 10..40
+  DEFAULT_USERNAME = '1234567890'
 end

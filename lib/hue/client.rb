@@ -6,39 +6,34 @@ module Hue
   class Client
     attr_reader :username
 
-    def initialize(username = '1234567890')
+    def initialize(username = DEFAULT_USERNAME, bridge_ip: nil)
       unless USERNAME_RANGE.include?(username.length)
         raise InvalidUsername, "Usernames must be between #{USERNAME_RANGE.first} and #{USERNAME_RANGE.last}."
       end
 
       @username = username
 
-      begin
-        validate_user
-      rescue Hue::UnauthorizedUser
-        register_user
+      if bridge_ip
+        @bridge = Bridge.new(self, :ip => bridge_ip)
       end
+
+      ensure_user
     end
 
     def bridge
-      # Pick the first one for now. In theory, they should all do the same thing.
-      bridge = bridges.first
-      raise NoBridgeFound unless bridge
-      bridge
+      @bridge ||= discover_bridges.first.tap do |bridge|
+        raise NoBridgeFound unless bridge
+      end
     end
 
-    def bridges
-      @bridges ||= begin
-        bs = []
-        easy = Curl::Easy.new
-        easy.follow_location = true
-        easy.max_redirects = 10
-        easy.url = 'https://www.meethue.com/api/nupnp'
-        easy.perform
-        JSON(easy.body).each do |hash|
-          bs << Bridge.new(self, hash)
-        end
-        bs
+    def discover_bridges
+      easy = Curl::Easy.new
+      easy.follow_location = true
+      easy.max_redirects = 10
+      easy.url = 'https://www.meethue.com/api/nupnp'
+      easy.perform
+      JSON(easy.body).map do |hash|
+        Bridge.new(self, hash)
       end
     end
 
@@ -73,6 +68,14 @@ module Hue
     def scene(id)
       id = id.to_s
       scenes.select { |s| s.id == id }.first
+    end
+
+    def ensure_user
+      begin
+        validate_user
+      rescue Hue::UnauthorizedUser
+        register_user
+      end
     end
 
   private

@@ -40,6 +40,7 @@ module Hue
 
     def initialize(client, hash)
       @client = client
+      @ip = hash[:ip]
       unpack(hash)
     end
 
